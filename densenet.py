@@ -1,6 +1,5 @@
 '''DenseNet in PyTorch.'''
 import math
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -34,7 +33,7 @@ class Transition(nn.Module):
 
 
 class DenseNet(nn.Module):
-    def __init__(self, block, nblocks, growth_rate=12, reduction=0.5, num_classes=10):
+    def __init__(self, block, nblocks, growth_rate=12, reduction=0.5, numClasses=10):
         super(DenseNet, self).__init__()
         self.growth_rate = growth_rate
 
@@ -63,7 +62,7 @@ class DenseNet(nn.Module):
         num_planes += nblocks[3]*growth_rate
 
         self.bn = nn.BatchNorm2d(num_planes)
-        self.linear = nn.Linear(num_planes, num_classes)
+        self.linear = nn.Linear(num_planes, numClasses)
 
     def _make_dense_layers(self, block, in_planes, nblock):
         layers = []

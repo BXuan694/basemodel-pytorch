@@ -38,7 +38,7 @@ class Block(nn.Module):
 
 
 class ResNeXt(nn.Module):
-    def __init__(self, num_blocks, cardinality, bottleneck_width, num_classes=10):
+    def __init__(self, num_blocks, cardinality, bottleneck_width, numClasses=10):
         super(ResNeXt, self).__init__()
         self.cardinality = cardinality
         self.bottleneck_width = bottleneck_width
@@ -50,7 +50,7 @@ class ResNeXt(nn.Module):
         self.layer2 = self._make_layer(num_blocks[1], 2)
         self.layer3 = self._make_layer(num_blocks[2], 2)
         # self.layer4 = self._make_layer(num_blocks[3], 2)
-        self.linear = nn.Linear(cardinality*bottleneck_width*8, num_classes)
+        self.linear = nn.Linear(cardinality*bottleneck_width*8, numClasses)
 
     def _make_layer(self, num_blocks, stride):
         strides = [stride] + [1]*(num_blocks-1)

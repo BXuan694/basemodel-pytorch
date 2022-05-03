@@ -8,23 +8,22 @@ import torchvision.transforms as transforms
 import os
 import argparse
 from models import *
-from utils import progress_bar
+#from utils import progress_bar
 import time
 
 #----------------------解析参数---------------------------
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training')
-parser.add_argument('--input_size', default=32, type=int, metavar='N', help='input dimension')
-parser.add_argument('--batch_size', default=500, type=int, metavar='N', help='mini-batch size (default: 16)')
+parser.add_argument('--input_size', default=128, type=int, metavar='N', help='input dimension')
+parser.add_argument('--batch_size', default=32, type=int, metavar='N', help='mini-batch size (default: 16)')
 parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
 parser.add_argument('--savedir', default="./checkpoint/modelName")
 parser.add_argument('--resume', default=None, type=str, metavar='PATH', help='./checkpoint/ckpt.t7')
-parser.add_argument('--yourOwnDataset', metavar='DIR', default=False, type=bool, help='your own data')
+parser.add_argument('--yourOwnDataset', metavar='DIR', default=True, type=bool, help='your own data')
 parser.add_argument('--data', metavar='DIR', default="/home/w/data/256_ObjectCategories", help='path to dataset')
 parser.add_argument('--print_freq', '-p', default=10, type=int, metavar='N', help='print frequency (default: 10)')
 args = parser.parse_args()
 
 #----------------------全局变量---------------------------
-device = 'cpu'
 start_epoch = 0
 best_prec1 = -1
 best_prec5 = -1
@@ -32,10 +31,11 @@ best_prec5 = -1
 #----------------------数据---------------------------
 print('==> Preparing data..')
 inputSize = args.input_size
-traindir = './data'
-valdir = './data'
+traindir = '/home/w/data/256_ObjectCategories'
+valdir = '/home/w/data/256_ObjectCategories'
 transform_train = transforms.Compose([
-    transforms.RandomCrop(inputSize, padding=4),
+    transforms.RandomCrop(inputSize, padding=50),
+    #transforms.RandomResizedCrop(inputSize, scale=(1, 1), ratio=(1, 1)),
     transforms.RandomHorizontalFlip(),
     transforms.ToTensor(),
     transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),

@@ -68,7 +68,7 @@ def get_warmup_lr(curIter_, totalIters_, baseLr_, warmupRatio_, warmUpOption='li
 def train(globalStartEpoch, totalEpoches):
     inputSize=64
     transform_train = transforms.Compose([
-        transforms.RandomCrop(inputSize, padding=50),
+        transforms.RandomCrop(inputSize),
         #transforms.RandomResizedCrop(inputSize, scale=(1, 1), ratio=(1, 1)),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
@@ -90,8 +90,9 @@ def train(globalStartEpoch, totalEpoches):
 
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=batchSize, shuffle=True, pin_memory=True, num_workers=cfg.workers_per_gpu)
     validloader = torch.utils.data.DataLoader(validset, batch_size=batchSize, shuffle=False, pin_memory=True, num_workers=cfg.workers_per_gpu)
-    
     model = cfg.backbone
+    if cfg.resume_from is not None:
+        model.load_state_dict(torch.load(cfg.resume_from))
     model.cuda()
     model.train()
     

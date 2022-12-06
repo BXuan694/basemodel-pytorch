@@ -1,5 +1,6 @@
 from models import *
 from torchvision.datasets import *
+import torchvision.models as models
 
 # These are in RGB and are for ImageNet
 MEANS = (123.675, 116.28, 123.675)
@@ -12,7 +13,7 @@ Caltech256_CLASSES = ['001.ak47', '002.american-flag', '003.backpack', '004.base
                     '161.photocopier', '162.picnic-table', '163.playing-card', '164.porcupine', '165.pram', '166.praying-mantis', '167.pyramid', '168.raccoon', '169.radio-telescope', '170.rainbow', '171.refrigerator', '172.revolver-101', '173.rifle', '174.rotary-phone', '175.roulette-wheel', '176.saddle', '177.saturn', '178.school-bus', '179.scorpion-101', '180.screwdriver', '181.segway', '182.self-propelled-lawn-mower', '183.sextant', '184.sheet-music', '185.skateboard', '186.skunk', '187.skyscraper', '188.smokestack', '189.snail', '190.snake', '191.sneaker', '192.snowmobile', '193.soccer-ball', '194.socks', '195.soda-can', '196.spaghetti', '197.speed-boat', '198.spider', '199.spoon', '200.stained-glass',
                     '201.starfish-101', '202.steering-wheel', '203.stirrups', '204.sunflower-101', '205.superman', '206.sushi', '207.swan', '208.swiss-army-knife', '209.sword', '210.syringe', '211.tambourine', '212.teapot', '213.teddy-bear', '214.teepee', '215.telephone-box', '216.tennis-ball', '217.tennis-court', '218.tennis-racket', '219.theodolite', '220.toaster', '221.tomato', '222.tombstone', '223.top-hat', '224.touring-bike', '225.tower-pisa', '226.traffic-light', '227.treadmill', '228.triceratops', '229.tricycle', '230.trilobite-101', '231.tripod', '232.t-shirt', '233.tuning-fork', '234.tweezer', '235.umbrella-101', '236.unicorn', '237.vcr', '238.video-projector', '239.washing-machine', '240.watch-101',
                     '241.waterfall', '242.watermelon', '243.welding-mask', '244.wheelbarrow', '245.windmill', '246.wine-bottle', '247.xylophone', '248.yarmulke', '249.yo-yo', '250.zebra', '251.airplanes-101', '252.car-side-101', '253.faces-easy-101', '254.greyhound', '255.tennis-shoes', '256.toad', '257.clutter']
-CIFAR10_classes = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
+CIFAR10_CLASSES = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
 
 class Config(object):
     """
@@ -55,12 +56,12 @@ dataset_base = Config({
     'name': 'Base Dataset',
 
     # Training images and annotations
-    'train_images': './data/coco/images/',
-    'train_info':   'path_to_annotation_file',
+    'trainImgPrefix': './data/coco/images/',
+    'trainRoot':   'path_to_annotation_file',
 
     # Validation images and annotations.
-    'valid_images': './data/coco/images/',
-    'valid_info':   'path_to_annotation_file',
+    'validImgPrefix': './data/coco/images/',
+    'validRoot':   'path_to_annotation_file',
 
     # Whether or not to load GT. If this is False, eval.py quantitative evaluation won't work.
     'has_gt': True,
@@ -69,59 +70,51 @@ dataset_base = Config({
     'structure': "default",
 
     # A list of names for each of you classes.
-    'label_map': [],
+    'labelMap': [],
 
     # Num of classes
-    'label_map': 0
+    'numClses': -1
 })
 
 Caltech256_dataset = dataset_base.copy({
    'name': 'Caltech-256',
 
-    'train_info': '/home/w/data/256_ObjectCategories',
-    'trainimg_prefix': '',
-    'train_images': '',
+    'trainRoot': '/wbx/code/basemodel',
+    'trainImgPrefix': '',
 
-    'valid_info': '/home/w/data/256_ObjectCategories',
-    'validimg_prefix': '',
-    'valid_images': '',
+    'validRoot': '/wbx/code/basemodel',
+    'validImgPrefix': '',
 
-    'structure': "default",
-    'label_map': Caltech256_CLASSES
+    'structure': "txt",
+    'labelMap': Caltech256_CLASSES,
+    'numClses': len(Caltech256_CLASSES)
 })
 
 CIFAR10_dataset = dataset_base.copy({
     'name': 'CIFAR10',
 
-    'train_info': '/home/w/data/BL/bl121/labelCOCO/anno.json',
-    'trainimg_prefix': '',
-    'train_images': '',
+    'trainRoot': '/home/w/data/BL/bl121/labelCOCO/anno.json',
+    'trainImgPrefix': '',
 
-    'valid_info': '/home/w/data/BL/bl121/labelCOCO/anno.json',
-    'validimg_prefix': '',
-    'valid_images': '',
+    'validRoot': '/home/w/data/BL/bl121/labelCOCO/anno.json',
+    'validImgPrefix': '',
 
-    'structure': CIFAR10,
-    'label_map': CIFAR10_classes
+    'structure': 'default',
+    'label_map': CIFAR10_CLASSES,
+    'numClses': len(CIFAR10_CLASSES)
+
 })
 
 # ----------------------- CONFIG DEFAULTS ----------------------- #
 base_config = Config({
     'dataset': Caltech256_dataset,
     'num_classes': -1, # This should include the background class
-})
-
-vgg_Caltech256_config = base_config.copy({
-    'name': 'resnet_Caltech256',
-    'backbone': ResNet101(),
-    'dataset': Caltech256_dataset,
-    'num_classes': len(Caltech256_dataset.label_map),
 
     'train_pipeline':  [
         dict(type='LoadImageFromFile'),                                #read img process 
         dict(type='LoadAnnotations', with_bbox=True, with_mask=True),  #load annotations 
         dict(type='Resize',                                             #多尺度训练，随即从后面的size选择一个尺寸
-            img_scale=[(768, 512), (768, 480), (768, 448), (768, 416), (768, 384), (768, 352)],
+            img_scale=[(768, 768)],
             multiscale_mode='value',
             keep_ratio=True),
         dict(type='RandomFlip', flip_ratio=0.5),                    # 随机反转,0.5的概率
@@ -135,7 +128,7 @@ vgg_Caltech256_config = base_config.copy({
         dict(type='LoadImageFromFile'),
         dict(
             type='MultiScaleFlipAug',
-            img_scale=(768, 448),
+            img_scale=(768, 768),
             flip=False,
             transforms=[
                 dict(type='Resize', keep_ratio=True),
@@ -148,21 +141,94 @@ vgg_Caltech256_config = base_config.copy({
     ],
 
 
-    'imgs_per_gpu': 16,
+})
+
+res18_Caltech256_config = base_config.copy({
+    'name': 'resnet_Caltech256',
+    'backbone': ResNet18(),
+    'model_official': models.resnet18(pretrained=True), # 从官方模型抽取预训练权重
+    'dataset': Caltech256_dataset,
+    'num_classes': Caltech256_dataset.numClses,
+    'inputShape': (384, 384),
+
+    'batchSize': 16,
     'workers_per_gpu': 4,
-    'num_gpus': 1,
     # learning policy
-    'lr_config': dict(policy='step', warmup='linear', warmup_iters=500, warmup_ratio=0.005, step=[35, 60, 80, 90]),
+    'lr_config': dict(policy='step', warmup='linear', warmup_iters=500, warmup_ratio=0.005, step=[14, 19, 23]),
     # optimizer
     'optimizer': dict(type='SGD', lr=0.005, momentum=0.9, weight_decay=0.0001),  
     #'optimizer_config': dict(grad_clip=dict(max_norm=35, norm_type=2)),   #梯度平衡策略
 
-    'resume_from': None,    #从保存的权重文件中读取，如果为None则权重自己初始化
-    'total_epoch': 100,
+    'resume_from': "weights/resnet_Caltech256_epoch_1.pth",    #从保存的权重文件中读取，如果为None则权重自己初始化
+    'total_epoch': 25,
     'epoch_iters_start': 1,    #本次训练的开始迭代起始轮数
 })
 
-cfg = vgg_Caltech256_config.copy()
+res34_Caltech256_config = base_config.copy({
+    'name': 'resnet_Caltech256',
+    'backbone': ResNet34(),
+    'model_official': models.resnet34(pretrained=True), # 从官方模型抽取预训练权重
+    'dataset': Caltech256_dataset,
+    'num_classes': Caltech256_dataset.numClses,
+    'inputShape': (384, 384),
+
+    'batchSize': 16,
+    'workers_per_gpu': 4,
+    # learning policy
+    'lr_config': dict(policy='step', warmup='linear', warmup_iters=500, warmup_ratio=0.005, step=[14, 19, 23]),
+    # optimizer
+    'optimizer': dict(type='SGD', lr=0.005, momentum=0.9, weight_decay=0.0001),  
+    #'optimizer_config': dict(grad_clip=dict(max_norm=35, norm_type=2)),   #梯度平衡策略
+
+    'resume_from': "weights_n1/resnet_Caltech256_epoch_24.pth",    #从保存的权重文件中读取，如果为None则权重自己初始化
+    'total_epoch': 25,
+    'epoch_iters_start': 1,    #本次训练的开始迭代起始轮数
+})
+
+res50_Caltech256_config = base_config.copy({
+    'name': 'resnet_Caltech256',
+    'backbone': ResNet50(),
+    'model_official': models.resnet50(pretrained=True), # 从官方模型抽取预训练权重
+    'dataset': Caltech256_dataset,
+    'num_classes': Caltech256_dataset.numClses,
+    'inputShape': (384, 384),
+
+    'batchSize': 16,
+    'workers_per_gpu': 4,
+    # learning policy
+    'lr_config': dict(policy='step', warmup='linear', warmup_iters=500, warmup_ratio=0.005, step=[14, 19, 23]),
+    # optimizer
+    'optimizer': dict(type='SGD', lr=0.005, momentum=0.9, weight_decay=0.0001),  
+    #'optimizer_config': dict(grad_clip=dict(max_norm=35, norm_type=2)),   #梯度平衡策略
+
+    'resume_from': "weights/resnet_Caltech256_epoch_1.pth",    #从保存的权重文件中读取，如果为None则权重自己初始化
+    'total_epoch': 25,
+    'epoch_iters_start': 1,    #本次训练的开始迭代起始轮数
+})
+
+res101_Caltech256_config = base_config.copy({
+    'name': 'resnet_Caltech256',
+    'backbone': ResNet101(),
+    'model_official': models.resnet101(pretrained=True),
+    'dataset': Caltech256_dataset,
+    'num_classes': Caltech256_dataset.numClses,
+    'inputShape': (384, 384),
+
+    'batchSize': 4,
+    'workers_per_gpu': 4,
+    # learning policy
+    'lr_config': dict(policy='step', warmup='linear', warmup_iters=500, warmup_ratio=0.005, step=[14, 19, 23]),
+    # optimizer
+    'optimizer': dict(type='SGD', lr=0.005, momentum=0.9, weight_decay=0.0001),  
+    #'optimizer_config': dict(grad_clip=dict(max_norm=35, norm_type=2)),   #梯度平衡策略
+
+    'resume_from': "weights/resnet_Caltech256_epoch_1.pth",    #从保存的权重文件中读取，如果为None则权重自己初始化
+    'total_epoch': 25,
+    'epoch_iters_start': 1,    #本次训练的开始迭代起始轮数
+})
+
+
+cfg = res50_Caltech256_config.copy()
 
 
 def set_cfg(config_name:str):

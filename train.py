@@ -11,7 +11,9 @@ import os, sys
 import numpy as np
 import time
 from PIL import Image
+import math
 cudnn.benchmark = True
+
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -39,7 +41,9 @@ def set_lr(optimizer_, newLr_):
 # 评估精度
 def accuracy(output, target, topk=(1,)):
     """
-    计算topk准确率
+    计算topk准确率.
+    output:
+     list，shape和topk一致, 元素是输入batch中对应topk的准确率。
     """
     maxk = max(topk)
     batch_size = target.size(0)
@@ -73,17 +77,15 @@ def get_warmup_lr(curIter_, totalIters_, baseLr_, warmupRatio_, warmUpOption='li
      float，当前(curIter_)轮次的学习率。
     """
 
+    # 学习率从baseLr_*warmupRatio_开始，增长至baseLr_
     if warmUpOption == 'constant':
         warmupLr = baseLr_*warmupRatio_ 
     elif warmUpOption == 'linear':
-        # 学习率从baseLr_*warmupRatio_开始，增长至
         k = (1 - curIter_/totalIters_) * (1-warmupRatio_)
         warmupLr = baseLr_*(1-k)
     elif warmUpOption == 'exp':
         k = warmupRatio_**(1 - curIter_/totalIters_)
         warmupLr = baseLr_*k
-    elif warmUpOption == 'cosine':
-        pass
     return warmupLr
 
 def default_loader(path):
@@ -92,14 +94,11 @@ def default_loader(path):
 # 自定义数据集类
 class MyDataset(Dataset):
     def __init__(self, txt, transform=None, target_transform=None, loader=default_loader):
-        fh = open(txt, 'r')
         imgs = []
-        for line in fh:
-            line = line.rstrip()
-            line = line.strip('\n')
-            line = line.rstrip()
-            words = line.split()
-            imgs.append((words[0],int(words[1])))
+        with open(txt, 'r') as f:
+            for line in f:
+                words = line.strip().split()
+                imgs.append((words[0], int(words[1])))
         self.imgs = imgs
         self.transform = transform
         self.target_transform = target_transform
@@ -130,7 +129,6 @@ def train(globalStartEpoch, totalEpoches):
         transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
     ])
 
-
     if cfg.dataset.structure=="default":
         trainset = datasets.ImageFolder(cfg.dataset.trainRoot, transform=transform_train)
         validset = datasets.ImageFolder(cfg.dataset.validRoot, transform=transform_valid)
@@ -153,22 +151,41 @@ def train(globalStartEpoch, totalEpoches):
     model_official = {k: v for k, v in model_official.state_dict().items() if k in model_dict}
     model_dict.update(model_official)
     model.load_state_dict(model_dict)
+
     model.cuda()
 
     #------------------------------------optimizer--------------------------------
     lrOri = cfg.optimizer['lr']
-    lrStages = cfg.lr_config["step"]
     lrList = np.full(totalEpoches, lrOri)
-    for ii in range(len(lrStages)):
-        lrList[lrStages[ii]:]*=0.1
+    if cfg.lr_config["policy"]=='step':
+        lrStages = cfg.lr_config["step"]
+        for ii in range(len(lrStages)):
+            lrList[lrStages[ii]:]*=0.1
+        print("lr adapting stages: ", end=' ')
+        for ii in range(len(lrStages)):
+            print(cfg.lr_config["step"][ii], end=" ")
+    elif cfg.lr_config["policy"]=='consine':
+        for ii in range(totalEpoches):
+            lrList[ii] *= (0.5+0.5*math.cos(math.pi*(ii/totalEpoches)))
+    elif cfg.lr_config["policy"]=='restart':
+        # not modify here. Modify in each iter instead.
+        pass
+    elif cfg.lr_config["policy"]=='restart_step':
+        lrStages = cfg.lr_config["restartStep"]
+        for ii in range(len(lrStages)):
+            lrList[lrStages[ii]:]*=0.1
+        print("lr adapting stages: ", end=' ')
+        for ii in range(len(lrStages)):
+            print(cfg.lr_config["step"][ii], end=" ")
+    else:
+        raise NotImplementedError
+
     print("Lr: ", lrList)
-    print("lr adapting stages: ", end=' ')
-    for ii in range(len(lrStages)):
-        print(cfg.lr_config["step"][ii], end=" ")
     print("\ntotal training epoches: ", totalEpoches)
 
     optimizer_config = cfg.optimizer
-    optimizer = torch.optim.SGD(model.parameters(), lr=optimizer_config['lr'], momentum=optimizer_config['momentum'], weight_decay=optimizer_config['weight_decay'])
+    optimizer = optimizer_config['type'](model.parameters(), lr=optimizer_config['lr'], momentum=optimizer_config['momentum'], weight_decay=optimizer_config['weight_decay']) # SGD
+    # optimizer = optimizer_config['type'](model.parameters(), lr=optimizer_config['lr'], betas=[0.9, 0.999], weight_decay=optimizer_config['weight_decay']) # Adam
     criterion = nn.CrossEntropyLoss()
 
     print("starting epoch: ", globalStartEpoch)
@@ -203,6 +220,7 @@ def train(globalStartEpoch, totalEpoches):
         top1.reset()
         top5.reset()
         for batchIdx, (inputs, targets) in enumerate(trainloader):
+
             iterStartTime = time.time()
 
             if cfg.lr_config['warmup'] is not None and pastIters < cfg.lr_config['warmup_iters']:
@@ -210,7 +228,10 @@ def train(globalStartEpoch, totalEpoches):
                                         optimizer_config['lr'], cfg.lr_config['warmup_ratio'],
                                         cfg.lr_config['warmup'])
             else:
-                cur_lr = lrList[currentEpoch]
+                if cfg.lr_config["policy"]=='restart' or cfg.lr_config["policy"]=='restart_step':
+                    cur_lr = lrList[currentEpoch]*(0.5+0.5*math.cos(batchIdx/len(trainloader)*math.pi))
+                else:
+                    cur_lr = lrList[currentEpoch]
             set_lr(optimizer, cur_lr)
 
             inputs, targets = inputs.cuda(), targets.cuda()

@@ -1,6 +1,7 @@
 from models import *
 from torchvision.datasets import *
 import torchvision.models as models
+import torch
 
 # These are in RGB and are for ImageNet
 MEANS = (123.675, 116.28, 123.675)
@@ -139,61 +140,60 @@ base_config = Config({
                 dict(type='Collect', keys=['img']),
             ])
     ],
-
-
 })
 
 res18_Caltech256_config = base_config.copy({
-    'name': 'resnet_Caltech256',
+    'name': 'resnet18_Caltech256',
     'backbone': ResNet18(),
     'model_official': models.resnet18(pretrained=True), # 从官方模型抽取预训练权重
     'dataset': Caltech256_dataset,
     'num_classes': Caltech256_dataset.numClses,
     'inputShape': (384, 384),
 
-    'batchSize': 16,
+    'batchSize': 32,
     'workers_per_gpu': 4,
     # learning policy
-    'lr_config': dict(policy='step', warmup='linear', warmup_iters=500, warmup_ratio=0.005, step=[14, 19, 23]),
+    'lr_config': dict(policy='restart_step', warmup='linear', warmup_iters=500, warmup_ratio=0.005, step=[14, 19, 23], restartStep=[25, 30]),
     # optimizer
-    'optimizer': dict(type='SGD', lr=0.005, momentum=0.9, weight_decay=0.0001),  
+    'optimizer': dict(type=torch.optim.SGD, lr=0.005, momentum=0.9, weight_decay=0.003),
     #'optimizer_config': dict(grad_clip=dict(max_norm=35, norm_type=2)),   #梯度平衡策略
 
     'resume_from': "weights/resnet_Caltech256_epoch_1.pth",    #从保存的权重文件中读取，如果为None则权重自己初始化
-    'total_epoch': 25,
+    'total_epoch': 40,
     'epoch_iters_start': 1,    #本次训练的开始迭代起始轮数
 })
 
 res34_Caltech256_config = base_config.copy({
-    'name': 'resnet_Caltech256',
+    'name': 'resnet34_Caltech256',
     'backbone': ResNet34(),
     'model_official': models.resnet34(pretrained=True), # 从官方模型抽取预训练权重
     'dataset': Caltech256_dataset,
     'num_classes': Caltech256_dataset.numClses,
     'inputShape': (384, 384),
 
-    'batchSize': 16,
+    'batchSize': 32,
     'workers_per_gpu': 4,
     # learning policy
-    'lr_config': dict(policy='step', warmup='linear', warmup_iters=500, warmup_ratio=0.005, step=[14, 19, 23]),
+    'lr_config': dict(policy='restart_step', warmup='linear', warmup_iters=500, warmup_ratio=0.005, step=[14, 19, 23], restartStep=[25, 30]),
     # optimizer
-    'optimizer': dict(type='SGD', lr=0.005, momentum=0.9, weight_decay=0.0001),  
+    'optimizer': dict(type=torch.optim.SGD, lr=0.005, momentum=0.9, weight_decay=0.003),
+    #'optimizer': dict(type=torch.optim.Adam, lr=0.005, weight_decay=0.0001),
     #'optimizer_config': dict(grad_clip=dict(max_norm=35, norm_type=2)),   #梯度平衡策略
 
-    'resume_from': "weights_n1/resnet_Caltech256_epoch_24.pth",    #从保存的权重文件中读取，如果为None则权重自己初始化
-    'total_epoch': 25,
+    'resume_from': "weights/resnet_Caltech256_epoch_1.pth",    #从保存的权重文件中读取，如果为None则权重自己初始化
+    'total_epoch': 40,
     'epoch_iters_start': 1,    #本次训练的开始迭代起始轮数
 })
 
 res50_Caltech256_config = base_config.copy({
-    'name': 'resnet_Caltech256',
+    'name': 'resnet50_Caltech256',
     'backbone': ResNet50(),
     'model_official': models.resnet50(pretrained=True), # 从官方模型抽取预训练权重
     'dataset': Caltech256_dataset,
     'num_classes': Caltech256_dataset.numClses,
     'inputShape': (384, 384),
 
-    'batchSize': 16,
+    'batchSize': 32,
     'workers_per_gpu': 4,
     # learning policy
     'lr_config': dict(policy='step', warmup='linear', warmup_iters=500, warmup_ratio=0.005, step=[14, 19, 23]),
@@ -201,7 +201,7 @@ res50_Caltech256_config = base_config.copy({
     'optimizer': dict(type='SGD', lr=0.005, momentum=0.9, weight_decay=0.0001),  
     #'optimizer_config': dict(grad_clip=dict(max_norm=35, norm_type=2)),   #梯度平衡策略
 
-    'resume_from': "weights/resnet_Caltech256_epoch_1.pth",    #从保存的权重文件中读取，如果为None则权重自己初始化
+    'resume_from': "weights50_0/resnet_Caltech256_epoch_1.pth",    #从保存的权重文件中读取，如果为None则权重自己初始化
     'total_epoch': 25,
     'epoch_iters_start': 1,    #本次训练的开始迭代起始轮数
 })
@@ -227,8 +227,7 @@ res101_Caltech256_config = base_config.copy({
     'epoch_iters_start': 1,    #本次训练的开始迭代起始轮数
 })
 
-
-cfg = res50_Caltech256_config.copy()
+cfg = res18_Caltech256_config.copy()
 
 
 def set_cfg(config_name:str):
